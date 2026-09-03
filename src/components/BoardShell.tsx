@@ -55,7 +55,9 @@ import {
   type BoardCardFilter,
 } from "@/lib/board-filters";
 import { extractBoardIndicators } from "@/lib/board-indicators";
+import { extractGoalAttainment } from "@/lib/goal-attainment";
 import { BoardIndicators } from "@/components/BoardIndicators";
+import { GoalAttainmentPanel } from "@/components/GoalAttainmentPanel";
 import { BoardExecutiveSummary } from "@/components/BoardExecutiveSummary";
 import {
   applyMayaSuggestionFilter,
@@ -200,6 +202,11 @@ export function BoardShell({
       requirements,
     });
   }, [board, descendantIds, boards, lists, cards, requirements]);
+
+  const goalAttainment = useMemo(
+    () => (board ? extractGoalAttainment(board.id, boards) : null),
+    [board, boards],
+  );
 
   const mayaSuggestions = useMemo(() => {
     if (!board) return [];
@@ -668,6 +675,14 @@ export function BoardShell({
           </div>
 
           <div className="flex flex-col px-2 sm:px-3">
+            {goalAttainment ? (
+              <div className="mb-2 shrink-0">
+                <GoalAttainmentPanel
+                  attainment={goalAttainment}
+                  variant={board.level === "project" ? "compact" : "cover"}
+                />
+              </div>
+            ) : null}
             {boardIndicators ? (
               <div className="mb-2 shrink-0 rounded-2xl border border-white/15 bg-black/20 px-3 py-1.5">
                 <BoardIndicators

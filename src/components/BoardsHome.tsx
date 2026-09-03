@@ -32,7 +32,9 @@ import {
   getDescendantBoardIds,
 } from "@/lib/board-hierarchy";
 import { extractBoardIndicators } from "@/lib/board-indicators";
+import { extractGoalAttainment } from "@/lib/goal-attainment";
 import { BoardIndicators } from "@/components/BoardIndicators";
+import { GoalAttainmentPanel } from "@/components/GoalAttainmentPanel";
 import { MayaSuggestionsBar } from "@/components/MayaSuggestionsBar";
 import { ExecutiveSummaryField } from "@/components/BoardExecutiveSummary";
 import { suggestMayaActivities } from "@/lib/maya-suggestions";
@@ -59,6 +61,7 @@ type HomeTab = "boards" | "teams";
 
 function FeaturedBoardCard({
   board,
+  boards,
   stats,
   rolledUp,
   suggestions,
@@ -66,6 +69,7 @@ function FeaturedBoardCard({
   onInvite,
 }: {
   board: Board;
+  boards: Record<string, Board>;
   stats?: BoardIndicatorStats;
   rolledUp: boolean;
   suggestions: MayaSuggestion[];
@@ -73,6 +77,7 @@ function FeaturedBoardCard({
   onInvite: () => void;
 }) {
   const isOrg = board.level === "organization";
+  const attainment = extractGoalAttainment(board.id, boards);
   return (
     <article
       className={`flex flex-col overflow-hidden rounded-3xl border p-5 sm:p-6 ${
@@ -110,8 +115,13 @@ function FeaturedBoardCard({
           </span>
         </p>
       ) : null}
-      {stats ? (
+      {attainment ? (
         <div className="mt-4">
+          <GoalAttainmentPanel attainment={attainment} variant="cover" />
+        </div>
+      ) : null}
+      {stats ? (
+        <div className={attainment ? "mt-3" : "mt-4"}>
           <BoardIndicators stats={stats} variant="full" rolledUp={rolledUp} />
           <MayaSuggestionsBar
             suggestions={suggestions}
@@ -427,6 +437,7 @@ export function BoardsHome() {
                 <FeaturedBoardCard
                   key={board.id}
                   board={board}
+                  boards={boards}
                   stats={indicatorsByBoard[board.id]}
                   rolledUp={getDescendantBoardIds(board.id, boards).length > 0}
                   suggestions={suggestionsByBoard[board.id] || []}
@@ -489,6 +500,7 @@ export function BoardsHome() {
               0,
             );
             const memberCount = board.memberIds?.length ?? 0;
+            const attainment = extractGoalAttainment(board.id, boards);
 
             return (
               <article
@@ -543,6 +555,14 @@ export function BoardsHome() {
                         {listCount} listas · {cardCount} cards · {memberCount} membros
                       </p>
                       <div className="mt-2">
+                        {attainment ? (
+                          <div className="mb-1.5">
+                            <GoalAttainmentPanel
+                              attainment={attainment}
+                              variant="compact"
+                            />
+                          </div>
+                        ) : null}
                         <BoardIndicators
                           stats={indicatorsByBoard[board.id]}
                           variant="compact"
