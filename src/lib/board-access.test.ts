@@ -6,6 +6,7 @@ import {
   filterBoardsForMember,
   filterTeamsForMember,
   memberCanSeeBoard,
+  preferredMemberIdForEmail,
   snapshotVisibleToEmail,
   snapshotVisibleViaSharedTeam,
   teamIdsHeldByEmail,
@@ -91,6 +92,28 @@ describe("memberCanSeeBoard", () => {
     const personal = board({ id: "mine", teamId: null, memberIds: ["ana"] });
     expect(memberCanSeeBoard(personal, "ana", teams)).toBe(true);
     expect(memberCanSeeBoard(personal, "bia", teams)).toBe(false);
+  });
+});
+
+describe("preferredMemberIdForEmail", () => {
+  it("picks the member already on the team, not the login id", () => {
+    const members = {
+      login: member({ id: "3602de499a49b2f83f5e2d87", email: "charles.marques@cge.ce.gov.br" }),
+      board: member({ id: "T6znFkjZPu6qRDGt3xmtC", email: "charles.marques@cge.ce.gov.br" }),
+    };
+    const boards = {
+      asesi: board({
+        id: "asesi",
+        teamId: "asesi-team",
+        memberIds: ["T6znFkjZPu6qRDGt3xmtC"],
+      }),
+    };
+    const teams = {
+      "asesi-team": team({ id: "asesi-team", memberIds: ["T6znFkjZPu6qRDGt3xmtC"] }),
+    };
+    expect(preferredMemberIdForEmail("charles.marques@cge.ce.gov.br", members, boards, teams)).toBe(
+      "T6znFkjZPu6qRDGt3xmtC",
+    );
   });
 });
 

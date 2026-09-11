@@ -87,6 +87,7 @@ import {
   membersForSnapshot,
   syncCardAssignees,
 } from "./members";
+import { preferredMemberIdForEmail } from "./board-access";
 import {
   mergeMayaLogRecords,
   mayaDayLogId,
@@ -2078,10 +2079,15 @@ export const useBoardStore = create<BoardState>()(
           const now = new Date().toISOString();
 
           // Prefer matching by email across members
+          const preferredId = preferredMemberIdForEmail(
+            email,
+            state.members,
+            state.boards,
+            state.teams,
+          );
           const existing =
-            Object.values(state.members).find(
-              (m) => m.email.trim().toLowerCase() === email && email.length > 0,
-            ) ?? (state.currentUserId ? state.members[state.currentUserId] : null);
+            (preferredId ? state.members[preferredId] : undefined) ??
+            (state.currentUserId ? state.members[state.currentUserId] : null);
 
           if (existing) {
             const memberId = existing.id;
@@ -3176,6 +3182,19 @@ export const useBoardStore = create<BoardState>()(
         });
         for (const snapshot of snapshots) {
           get().mergeBoardSnapshot(snapshot, { setActive: false });
+        }
+        const after = get();
+        const email = after.currentUserId
+          ? after.members[after.currentUserId]?.email || ""
+          : "";
+        const preferred = preferredMemberIdForEmail(
+          email,
+          after.members,
+          after.boards,
+          after.teams,
+        );
+        if (preferred && preferred !== after.currentUserId) {
+          set({ currentUserId: preferred });
         }
       },
 

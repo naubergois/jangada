@@ -16,6 +16,32 @@ export function findMemberByEmail(
   );
 }
 
+/**
+ * Login gera users.id; o board guarda outro id para o mesmo e-mail.
+ * Prefere o membro que já está no time/quadro — senão a home some tudo.
+ */
+export function preferredMemberIdForEmail(
+  email: string,
+  members: Record<string, TeamMember> | undefined,
+  boards?: Record<string, Board> | Board[],
+  teams?: Record<string, Team>,
+): string | null {
+  const key = normalizeEmail(email);
+  if (!key) return null;
+  const matches = Object.values(members || {}).filter(
+    (m) => normalizeEmail(m.email) === key,
+  );
+  if (matches.length === 0) return null;
+  const boardList = Array.isArray(boards) ? boards : Object.values(boards || {});
+  const teamList = Object.values(teams || {});
+  const onBoard = matches.find(
+    (m) =>
+      boardList.some((board) => (board.memberIds || []).includes(m.id)) ||
+      teamList.some((team) => team.memberIds.includes(m.id)),
+  );
+  return (onBoard ?? matches[0]).id;
+}
+
 /** Team members see every board of that team; direct board members see that board. */
 export function memberCanSeeBoard(
   board: Board,
