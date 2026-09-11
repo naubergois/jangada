@@ -36,6 +36,7 @@ services:
           memory: 128M
       labels:
         - "traefik.enable=true"
+        - "traefik.docker.network=proxy"
         - "traefik.http.routers.jangada-homol.rule=Host(`homolog-jangada.cge.local`)"
         - "traefik.http.routers.jangada-homol.entrypoints=web"
         - "traefik.http.services.jangada-homol.loadbalancer.server.port=3000"
