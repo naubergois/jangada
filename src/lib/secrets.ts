@@ -52,37 +52,46 @@ export async function loadSecrets(): Promise<void> {
 
   const region = process.env.AWS_REGION?.trim() || "sa-east-1";
 
-  const client = new SecretsManagerClient({ region });
-
-  const response = await client.send(
-    new GetSecretValueCommand({ SecretId: secretName }),
-  );
-
-  const secretString = response.SecretString;
-  if (!secretString) {
-    throw new Error(
-      `Secret "${secretName}" não contém SecretString (binary secrets não são suportados).`,
-    );
-  }
-
-  let secrets: Record<string, string>;
   try {
-    secrets = JSON.parse(secretString) as Record<string, string>;
-  } catch {
-    throw new Error(
-      `Secret "${secretName}" não é um JSON válido. Esperado: objeto com chaves = nomes de env vars.`,
+    const client = new SecretsManagerClient({ region });
+    const response = await client.send(
+      new GetSecretValueCommand({ SecretId: secretName }),
+    );
+
+    const secretString = response.SecretString;
+    if (!secretString) {
+      throw new Error(
+        `Secret "${secretName}" não contém SecretString (binary secrets não são suportados).`,
+      );
+    }
+
+    let secrets: Record<string, string>;
+    try {
+      secrets = JSON.parse(secretString) as Record<string, string>;
+    } catch {
+      throw new Error(
+        `Secret "${secretName}" não é um JSON válido. Esperado: objeto com chaves = nomes de env vars.`,
+      );
+    }
+
+    // Injeta no process.env sem sobrescrever valores já definidos.
+    for (const [key, value] of Object.entries(secrets)) {
+      if (typeof value === "string" && !process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+
+    loaded = true;
+    console.log(
+      `[secrets] Loaded ${Object.keys(secrets).length} keys from AWS Secrets Manager (${secretName}).`,
+    );
+  } catch (err) {
+    // Homolog: cofre/rede instável não pode derrubar o processo — senão o
+    // Swarm esgota max_attempts e o Traefik some a rota (404).
+    loaded = true;
+    console.error(
+      `[secrets] Cofre indisponível (${secretName}). Servidor sobe com as env do container.`,
+      err instanceof Error ? err.message : err,
     );
   }
-
-  // Injeta no process.env sem sobrescrever valores já definidos.
-  for (const [key, value] of Object.entries(secrets)) {
-    if (typeof value === "string" && !process.env[key]) {
-      process.env[key] = value;
-    }
-  }
-
-  loaded = true;
-  console.log(
-    `[secrets] Loaded ${Object.keys(secrets).length} keys from AWS Secrets Manager (${secretName}).`,
-  );
 }
