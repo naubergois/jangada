@@ -9,11 +9,25 @@ export function findMemberByEmail(
   members: Record<string, TeamMember> | undefined,
   email: string,
 ): TeamMember | undefined {
+  return membersForEmail(members, email)[0];
+}
+
+export function membersForEmail(
+  members: Record<string, TeamMember> | undefined,
+  email: string,
+): TeamMember[] {
   const key = normalizeEmail(email);
-  if (!key) return undefined;
-  return Object.values(members || {}).find(
+  if (!key) return [];
+  return Object.values(members || {}).filter(
     (m) => normalizeEmail(m.email) === key,
   );
+}
+
+export function memberIdsForEmail(
+  members: Record<string, TeamMember> | undefined,
+  email: string,
+): string[] {
+  return membersForEmail(members, email).map((m) => m.id);
 }
 
 /**
@@ -68,6 +82,21 @@ export function filterBoardsForMember<T extends Board>(
   return boards.filter((board) => memberCanSeeBoard(board, memberId, teams));
 }
 
+export function filterBoardsForEmail<T extends Board>(
+  boards: T[],
+  email: string,
+  members: Record<string, TeamMember> | undefined,
+  teams: Record<string, Team>,
+  opts?: { isAdmin?: boolean },
+): T[] {
+  if (opts?.isAdmin) return boards;
+  const ids = memberIdsForEmail(members, email);
+  if (ids.length === 0) return [];
+  return boards.filter((board) =>
+    ids.some((id) => memberCanSeeBoard(board, id, teams)),
+  );
+}
+
 export function filterTeamsForMember<T extends Team>(
   teams: T[],
   memberId: string | null | undefined,
@@ -76,6 +105,18 @@ export function filterTeamsForMember<T extends Team>(
   if (opts?.isAdmin) return teams;
   if (!memberId) return [];
   return teams.filter((team) => team.memberIds.includes(memberId));
+}
+
+export function filterTeamsForEmail<T extends Team>(
+  teams: T[],
+  email: string,
+  members: Record<string, TeamMember> | undefined,
+  opts?: { isAdmin?: boolean },
+): T[] {
+  if (opts?.isAdmin) return teams;
+  const ids = new Set(memberIdsForEmail(members, email));
+  if (ids.size === 0) return [];
+  return teams.filter((team) => team.memberIds.some((id) => ids.has(id)));
 }
 
 export function emailIsOnBoardTeam(snapshot: BoardSnapshot, email: string): boolean {
@@ -92,9 +133,9 @@ export function emailIsOnBoardTeam(snapshot: BoardSnapshot, email: string): bool
 }
 
 export function emailIsBoardMember(snapshot: BoardSnapshot, email: string): boolean {
-  const member = findMemberByEmail(snapshot.members, email);
-  if (!member) return false;
-  return (snapshot.board.memberIds || []).includes(member.id);
+  const ids = new Set(memberIdsForEmail(snapshot.members, email));
+  if (ids.size === 0) return false;
+  return (snapshot.board.memberIds || []).some((id) => ids.has(id));
 }
 
 /**
@@ -115,13 +156,16 @@ export function teamIdsHeldByEmail(
 ): Set<string> {
   const ids = new Set<string>();
   for (const snapshot of snapshots) {
-    const member = findMemberByEmail(snapshot.members, email);
-    if (!member) continue;
-    if (snapshot.board.teamId && (snapshot.board.memberIds || []).includes(member.id)) {
+    const matchIds = new Set(memberIdsForEmail(snapshot.members, email));
+    if (matchIds.size === 0) continue;
+    if (
+      snapshot.board.teamId &&
+      (snapshot.board.memberIds || []).some((id) => matchIds.has(id))
+    ) {
       ids.add(snapshot.board.teamId);
     }
     for (const team of Object.values(snapshot.teams || {})) {
-      if (team.memberIds.includes(member.id)) ids.add(team.id);
+      if (team.memberIds.some((id) => matchIds.has(id))) ids.add(team.id);
     }
   }
   return ids;

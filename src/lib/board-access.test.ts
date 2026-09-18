@@ -3,6 +3,7 @@ import type { BoardSnapshot } from "./board-snapshot";
 import type { Board, Team, TeamMember } from "./types";
 import {
   emailIsOnBoardTeam,
+  filterBoardsForEmail,
   filterBoardsForMember,
   filterTeamsForMember,
   memberCanSeeBoard,
@@ -115,6 +116,28 @@ describe("preferredMemberIdForEmail", () => {
       "T6znFkjZPu6qRDGt3xmtC",
     );
   });
+
+  it("still finds the board member when the login id is stored first", () => {
+    const charles = "charles.marques@cge.ce.gov.br";
+    const members = {
+      login: member({ id: "3602de499a49b2f83f5e2d87", email: charles }),
+      board: member({ id: "T6znFkjZPu6qRDGt3xmtC", email: charles }),
+    };
+    const asesi = board({
+      id: "asesi",
+      teamId: "asesi-team",
+      memberIds: ["T6znFkjZPu6qRDGt3xmtC"],
+    });
+    const teams = {
+      "asesi-team": team({ id: "asesi-team", memberIds: ["T6znFkjZPu6qRDGt3xmtC"] }),
+    };
+    expect(
+      filterBoardsForMember([asesi], "3602de499a49b2f83f5e2d87", teams).map((b) => b.id),
+    ).toEqual([]);
+    expect(filterBoardsForEmail([asesi], charles, members, teams).map((b) => b.id)).toEqual([
+      "asesi",
+    ]);
+  });
 });
 
 describe("filterTeamsForMember", () => {
@@ -219,5 +242,38 @@ describe("teamIdsHeldByEmail", () => {
       true,
     );
     expect(snapshotVisibleToEmail(farol, "charles.marques@cge.ce.gov.br")).toBe(false);
+  });
+
+  it("ignores a leftover login id when the board still has the real member", () => {
+    const charles = "charles.marques@cge.ce.gov.br";
+    const mandacaru = snap({
+      board: board({ id: "mandacaru", teamId: "asesi-team", memberIds: ["T6znFkjZPu6qRDGt3xmtC"] }),
+      teams: {
+        "asesi-team": team({ id: "asesi-team", memberIds: ["T6znFkjZPu6qRDGt3xmtC"] }),
+      },
+      members: {
+        login: member({
+          id: "3602de499a49b2f83f5e2d87",
+          email: charles,
+          name: "Charles login",
+        }),
+        board: member({
+          id: "T6znFkjZPu6qRDGt3xmtC",
+          email: charles,
+          name: "Charles",
+        }),
+      },
+    });
+    const farol = snap({
+      board: board({ id: "farol", teamId: "asesi-team", memberIds: ["ana"] }),
+      teams: { "asesi-team": team({ id: "asesi-team", memberIds: ["ana"] }) },
+      members: {
+        ana: member({ id: "ana", email: "ana@cge.ce.gov.br", name: "Ana" }),
+      },
+    });
+    const held = teamIdsHeldByEmail([mandacaru, farol], charles);
+    expect([...held]).toEqual(["asesi-team"]);
+    expect(snapshotVisibleToEmail(mandacaru, charles)).toBe(true);
+    expect(snapshotVisibleViaSharedTeam(farol, charles, held)).toBe(true);
   });
 });
