@@ -27,13 +27,21 @@ Este repositório contém **apenas o código-fonte**. Boards, usuários, convers
 
 ## O que o Jangada faz
 
+O quadro, a gestora **Maya** e o servidor **MCP** operam o mesmo PostgreSQL. Quatro loops no mesmo estado:
+
+1. **Requisito → spec, Gherkin, brief de código e handoff** para o IDE institucional
+2. **Fala em português → tools no quadro** (criar, mover, atribuir, daily)
+3. **Git → coluna Riscos Maya** (cobertura do card + shift-left: .env, segredo, CI/teste)
+4. **IDE → o mesmo Postgres** — o desenvolvedor grava o board enquanto implementa
+
+Maya não commita. Quem gera o código é o agente do IDE. Sem chave de LLM o board permanece.
+
 - Quadros Kanban com listas, cards, prazos, responsáveis, checklist e requisitos
 - Hierarquia de boards (organização → unidade → time → projeto)
 - Convites, equipes e papéis (administrador cadastra os demais)
-- Gestora virtual **Maya**: daily, chat, riscos do kanban e análise de repositórios Git
 - Anexos e observações diárias nos cards
 - Reuniões da equipe (Jitsi)
-- Servidor MCP para gravar cards a partir do Cursor ou do Kiro
+- Servidor MCP (`npm run mcp`) para o IDE institucional (VS Code / MCP)
 
 <p align="center">
   <img src="docs/images/jangada-board.png" alt="Quadro Kanban do Jangada" width="100%">
@@ -117,14 +125,11 @@ O código público **não** inclui:
 
 Copie `.env.example` para `.env.local` e preencha com o ambiente de vocês.
 
-## MCP (Cursor e Kiro)
+## MCP (IDE institucional)
 
-O servidor stdio `scripts/jangada-mcp.mjs` grava no mesmo Postgres (ou em `data/` sem `PG_*`).
+O servidor stdio `scripts/jangada-mcp.mjs` grava no mesmo Postgres (ou em `data/` sem `PG_*`). Qualquer cliente MCP (VS Code, Cursor, Kiro) usa as mesmas tools.
 
-- Cursor: `.cursor/mcp.json`
-- Kiro: `.kiro/settings/mcp.json`
-
-Reinicie o MCP nas duas IDEs depois do `npm install`. Tools principais: `jangada_listar_boards`, `jangada_ver_board`, `jangada_criar_card`, `jangada_criar_cards`, `jangada_anexar_arquivo`, `jangada_mover_card`, `jangada_adicionar_git`.
+Tools principais: `jangada_listar_boards`, `jangada_ver_board`, `jangada_criar_card`, `jangada_criar_cards`, `jangada_criar_requisito`, `jangada_anexar_arquivo`, `jangada_mover_card`, `jangada_adicionar_git`.
 
 ## Repositórios
 

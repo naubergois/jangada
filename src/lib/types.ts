@@ -103,6 +103,8 @@ export interface Requirement {
   specPrompt?: string;
   /** Prompt para plano de testes (Gherkin + automação) */
   testPrompt?: string;
+  /** Brief de geração/refatoração no IDE — Maya não commita */
+  codePrompt?: string;
   /** Payload JSON para ferramentas MCP (software_planning, handoff, etc.) */
   mcpPayload?: string;
   /** Objetivo compacto para colaboração A2A */

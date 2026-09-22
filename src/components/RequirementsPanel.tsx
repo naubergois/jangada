@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  SquareTerminal,
   Trash2,
   X,
 } from "lucide-react";
@@ -37,7 +38,7 @@ const STATUSES: RequirementStatus[] = [
 
 type StatusFilter = "all" | RequirementStatus;
 type EditorMode = "create" | "edit" | null;
-type PromptTab = "spec" | "test" | "mcp" | "a2a";
+type PromptTab = "spec" | "test" | "code" | "mcp" | "a2a";
 
 async function copyText(text: string) {
   await navigator.clipboard.writeText(text);
@@ -58,6 +59,7 @@ function PromptViewer({
   const tabs: { id: PromptTab; label: string; icon: ReactNode }[] = [
     { id: "spec", label: "Spec-based", icon: <FileCode2 className="h-3.5 w-3.5" /> },
     { id: "test", label: "Testes", icon: <FlaskConical className="h-3.5 w-3.5" /> },
+    { id: "code", label: "Código", icon: <SquareTerminal className="h-3.5 w-3.5" /> },
     { id: "mcp", label: "MCP", icon: <Sparkles className="h-3.5 w-3.5" /> },
     { id: "a2a", label: "A2A", icon: <Bot className="h-3.5 w-3.5" /> },
   ];
@@ -67,9 +69,11 @@ function PromptViewer({
       ? req.specPrompt || ""
       : tab === "test"
         ? req.testPrompt || ""
-        : tab === "mcp"
-          ? req.mcpPayload || ""
-          : req.a2aObjective || "";
+        : tab === "code"
+          ? req.codePrompt || ""
+          : tab === "mcp"
+            ? req.mcpPayload || ""
+            : req.a2aObjective || "";
 
   return createPortal(
     <div
@@ -84,7 +88,7 @@ function PromptViewer({
             {req.code} · prompts
           </p>
           <h3 className="truncate font-[family-name:var(--font-display)] text-lg text-white sm:text-2xl">
-            Spec · Testes · MCP · A2A
+            Spec · Testes · Código · MCP · A2A
           </h3>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -324,7 +328,7 @@ export function RequirementsPanel({
         status: draftStatus,
       });
       setJustCreated(id);
-      toast("Requisito cadastrado com prompts Spec/Testes/MCP/A2A");
+      toast("Requisito cadastrado com prompts Spec/Testes/Código/MCP/A2A");
       window.setTimeout(() => setJustCreated(null), 1800);
       closeEditor();
       return;
@@ -409,7 +413,7 @@ export function RequirementsPanel({
               const n = regenerateBoardRequirementPrompts(boardId);
               toast(
                 n
-                  ? `${n} requisito(s) com prompts Spec/Testes/MCP/A2A`
+                  ? `${n} requisito(s) com prompts Spec/Testes/Código/MCP/A2A`
                   : "Nenhum requisito neste board",
               );
             }}
@@ -488,7 +492,7 @@ export function RequirementsPanel({
               </p>
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {list.length === 0
-                  ? "Cadastre um requisito para gerar prompts Spec/Testes/MCP/A2A."
+                      ? "Cadastre um requisito para gerar prompts Spec/Testes/Código/MCP/A2A."
                   : "Ajuste a busca ou o status."}
               </p>
               {list.length === 0 ? (
@@ -507,7 +511,7 @@ export function RequirementsPanel({
               {filtered.map((req, index) => {
                 const owner = req.ownerId ? members[req.ownerId] : null;
                 const hasPrompts = Boolean(
-                  req.specPrompt && req.testPrompt && req.mcpPayload,
+                  req.specPrompt && req.testPrompt && req.codePrompt && req.mcpPayload,
                 );
                 return (
                   <article
@@ -534,7 +538,7 @@ export function RequirementsPanel({
                           </span>
                           {hasPrompts ? (
                             <span className="rounded-md bg-[var(--accent)]/15 px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)] ring-1 ring-[var(--accent)]/30">
-                              Spec·Test·MCP·A2A
+                              Spec·Test·Código·MCP
                             </span>
                           ) : null}
                         </div>

@@ -1884,6 +1884,7 @@ export const useBoardStore = create<BoardState>()(
             if (
               req.specPrompt &&
               req.testPrompt &&
+              req.codePrompt &&
               req.mcpPayload &&
               req.a2aObjective
             ) {

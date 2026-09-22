@@ -65,7 +65,49 @@ export function analyzeClonedSource(opts: {
     });
   }
 
-  return risks.slice(0, 8);
+  const envCommitted = lowerFiles.some((f) =>
+    /(^|\/)\.env($|\.(?!example|sample|template|dist)[\w.-]*$)/i.test(f),
+  );
+  if (envCommitted) {
+    risks.push({
+      id: `src-env-${hash(repo)}`,
+      title: "Arquivo .env versionado no Git",
+      severity: "high",
+      source: "git",
+      reason: `${repo} tem .env no clone — risco de segredo no repositório. .env.example não conta.`,
+    });
+  }
+
+  const secretHits =
+    (hay.match(/begin (rsa |openssh |ec )?private key/g) || []).length +
+    (hay.match(/akia[0-9a-z]{16}/g) || []).length +
+    (hay.match(/(api[_-]?key|secret|password|token)\s*[:=]\s*['"][^'"]{8,}/g) || [])
+      .length;
+  if (secretHits >= 1) {
+    risks.push({
+      id: `src-secret-${hash(repo)}`,
+      title: "Possível segredo no código",
+      severity: "high",
+      source: "git",
+      reason: `O clone de ${repo} tem padrão de chave, senha ou token em texto. Heurística de shift-left — não é SAST.`,
+    });
+  }
+
+  const evalHits =
+    (hay.match(/\beval\s*\(/g) || []).length +
+    (hay.match(/new function\s*\(/g) || []).length +
+    (hay.match(/dangerouslysetinnerhtml/g) || []).length;
+  if (evalHits >= 3) {
+    risks.push({
+      id: `src-eval-${hash(repo)}`,
+      title: "Uso recorrente de eval / innerHTML dinâmico",
+      severity: "medium",
+      source: "git",
+      reason: `${repo} concentra eval, new Function ou dangerouslySetInnerHTML. Vale revisão de injeção antes do merge.`,
+    });
+  }
+
+  return risks.slice(0, 10);
 }
 
 function hash(value: string) {

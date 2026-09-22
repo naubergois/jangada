@@ -3,6 +3,7 @@ import type { Requirement } from "@/lib/types";
 export type RequirementPromptBundle = {
   specPrompt: string;
   testPrompt: string;
+  codePrompt: string;
   mcpPayload: string;
   a2aObjective: string;
   promptsGeneratedAt: string;
@@ -118,6 +119,36 @@ Feature: ${input.code} — ${feature}
 `;
 }
 
+/** Brief de geração/refatoração para o agente de código no IDE. Maya não commita. */
+export function buildCodePrompt(input: RequirementPromptInput): string {
+  const feature = featureName(input);
+  const product = input.productName || input.boardTitle || "Jangada";
+  return `# Implementação — ${input.code}: ${feature}
+
+## Produto
+${product}
+
+## Escopo
+${scopeBlock(input)}
+
+## Seu trabalho (agente de código no IDE)
+1. Leia a spec e o plano de teste deste requisito antes de escrever arquivo.
+2. Liste os arquivos que vai criar ou alterar. Não invente API que o repo não tem.
+3. Implemente o caminho feliz e os casos do Gherkin. Sem feature extra.
+4. Refatore só o que o requisito toca: nome claro, função pequena, teste no mesmo PR.
+5. Não commite segredo, .env nem dado de execução.
+
+## Saída
+- Plano de arquivos (criar / alterar / apagar)
+- Assinaturas públicas
+- Diff mental por arquivo
+- Checklist de refatoração (o que não mexer)
+- Como o job Git deve achar este card no repo (tokens no README ou no módulo)
+
+O MCP grava o mesmo quadro. Quem gera o código é o agente do IDE, não a Maya.
+`;
+}
+
 /** Structured MCP tool handoff (software planning + A2A-friendly hints). */
 export function buildMcpPayload(input: RequirementPromptInput): string {
   const feature = featureName(input);
@@ -199,6 +230,7 @@ export function buildMcpPayload(input: RequirementPromptInput): string {
     artifacts: {
       spec_prompt_id: `spec:${slugify(input.code)}`,
       test_prompt_id: `test:${slugify(input.code)}`,
+      code_prompt_id: `code:${slugify(input.code)}`,
     },
   };
   return JSON.stringify(payload, null, 2);
@@ -210,7 +242,7 @@ export function buildA2aObjective(input: RequirementPromptInput): string {
   return [
     `A2A — requisito ${input.code}: ${feature}.`,
     `Prioridade ${input.priority}.`,
-    `Produzir: (1) especificação spec-based executável, (2) plano de testes Gherkin + automação, (3) handoff MCP pronto (software_planning + testes).`,
+    `Produzir: (1) especificação spec-based executável, (2) plano de testes Gherkin + automação, (3) brief de geração/refatoração no IDE, (4) handoff MCP pronto.`,
     `Escopo: ${scopeBlock(input)}`,
     `Consenso final deve listar passos de implementação e casos de teste mapeados a ${input.code}.`,
   ].join(" ");
@@ -223,6 +255,7 @@ export function buildRequirementPrompts(
   return {
     specPrompt: buildSpecPrompt(input),
     testPrompt: buildTestPrompt(input),
+    codePrompt: buildCodePrompt(input),
     mcpPayload: buildMcpPayload(input),
     a2aObjective: buildA2aObjective(input),
     promptsGeneratedAt: generatedAt,
@@ -234,6 +267,7 @@ export function requirementNeedsPrompts(req: Partial<Requirement> | null | undef
   return !(
     req.specPrompt &&
     req.testPrompt &&
+    req.codePrompt &&
     req.mcpPayload &&
     req.a2aObjective
   );

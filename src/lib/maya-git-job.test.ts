@@ -38,6 +38,16 @@ describe("weekly git clone helpers", () => {
 });
 
 describe("cloned source risks", () => {
+  it("flags committed .env and secret-like text", () => {
+    const risks = analyzeClonedSource({
+      url: "http://git.cge.local/g_asesi/app.git",
+      files: [".env", "src/a.ts", "README.md"],
+      haystack: "const token = 'supersecretvalue'; AKIAIOSFODNN7EXAMPLE leftover",
+    });
+    expect(risks.some((r) => r.id.startsWith("src-env"))).toBe(true);
+    expect(risks.some((r) => r.id.startsWith("src-secret"))).toBe(true);
+  });
+
   it("flags missing tests and CI", () => {
     const risks = analyzeClonedSource({
       url: "http://git.cge.local/g_asesi/app.git",
