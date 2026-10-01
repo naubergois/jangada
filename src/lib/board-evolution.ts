@@ -78,6 +78,30 @@ function datedIso(day: string, month: string, year: number): string | null {
   return `${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
+function textParagraphs(text: string): string[] {
+  return String(text || "")
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/** Datas dd/mm ou dd/mm/aaaa citadas no texto. */
+export function datesInText(text: string, reference = new Date()): string[] {
+  const found = new Set<string>();
+  const pattern = /(?<!\d)(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?(?!\d|\/)/g;
+  for (const match of String(text || "").matchAll(pattern)) {
+    const date = match[3]
+      ? datedIso(match[1], match[2], Number(match[3]))
+      : evolutionDateIso(match[1], match[2], reference);
+    if (date) found.add(date);
+  }
+  return [...found];
+}
+
+function mentionsDate(text: string, iso: string, reference: Date): boolean {
+  return datesInText(text, reference).includes(iso);
+}
+
 /** Data do resumo, no começo do texto: "Farol — 28/09" ou "Andamento (28/08): 25%". */
 export function summaryUpdateDate(text: string, reference = new Date()): string | null {
   const head = String(text || "").slice(0, 180);
@@ -125,20 +149,50 @@ export function collectEvolutionDayComments(input: {
 
   for (const id of ids) {
     const board = input.boards[id];
-    const body = String(board?.executiveSummary || "").trim();
-    if (!body) continue;
-    const date = summaryUpdateDate(body, reference);
-    if (!date) continue;
-    items.push({
-      id: `summary:${id}`,
-      date,
-      boardId: id,
-      boardTitle: board?.title || "Board",
-      cardTitle: "",
-      author: "Resumo",
-      body,
-      kind: "summary",
-    });
+    if (!board) continue;
+    const summary = String(board.executiveSummary || "").trim();
+    const summaryParts = textParagraphs(summary);
+    const otherParts = [
+      ...textParagraphs(board.objectives || ""),
+      ...textParagraphs(board.description || ""),
+    ];
+    const chunks = [...summaryParts, ...otherParts];
+    const header = summary ? summaryUpdateDate(summary, reference) : null;
+    const dates = new Set<string>();
+    if (header) dates.add(header);
+    for (const point of pointsForBoard(board, reference)) dates.add(point.date);
+    for (const chunk of chunks) {
+      for (const date of datesInText(chunk, reference)) dates.add(date);
+    }
+    const seen = new Set<string>();
+    for (const date of dates) {
+      const bodies: string[] = [];
+      if (header === date && summary) {
+        bodies.push(summary);
+      } else {
+        for (const chunk of summaryParts) {
+          if (mentionsDate(chunk, date, reference)) bodies.push(chunk);
+        }
+      }
+      for (const chunk of otherParts) {
+        if (mentionsDate(chunk, date, reference)) bodies.push(chunk);
+      }
+      bodies.forEach((body, index) => {
+        const key = `${date}\0${body}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        items.push({
+          id: `summary:${id}:${date}:${index}`,
+          date,
+          boardId: id,
+          boardTitle: board.title || "Board",
+          cardTitle: "",
+          author: "Texto",
+          body,
+          kind: "summary",
+        });
+      });
+    }
   }
 
   for (const card of Object.values(input.cards)) {

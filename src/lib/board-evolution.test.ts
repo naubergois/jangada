@@ -280,7 +280,7 @@ describe("collectEvolutionDayComments", () => {
       },
       reference: new Date(2026, 9, 1),
     });
-    expect(items.map((item) => item.id)).toEqual(["summary:proj-farol", "activity:a1"]);
+    expect(items.map((item) => item.kind)).toEqual(["summary", "update"]);
     expect(items[1]).toMatchObject({
       date: "2026-09-28",
       cardTitle: "",
@@ -329,5 +329,26 @@ describe("collectEvolutionDayComments", () => {
     });
     expect(items.map((item) => item.id)).toEqual(["activity:mov"]);
     expect(items[0].cardTitle).toBe("Validar Farol");
+  });
+
+  it("shows the board text on each evolution day it mentions", () => {
+    const items = collectEvolutionDayComments({
+      boardId: "proj-farol",
+      boards: {
+        "proj-farol": board({
+          id: "proj-farol",
+          title: "Farol",
+          executiveSummary: "Farol — 28/09 (áudios)\n\nAna validou o diagnóstico.",
+          description: "Andamento operacional (28/08): 30%. Farol — validação COAUD.",
+        }),
+      },
+      lists: {},
+      cards: {},
+      members: {},
+      reference: new Date(2026, 9, 1),
+    });
+    const byDate = Object.fromEntries(items.map((item) => [item.date, item.body]));
+    expect(byDate["2026-09-28"]).toContain("Ana validou o diagnóstico.");
+    expect(byDate["2026-08-28"]).toContain("validação COAUD");
   });
 });
