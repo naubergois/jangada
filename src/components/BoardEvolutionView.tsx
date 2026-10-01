@@ -219,6 +219,12 @@ export function BoardEvolutionView({
     if (activeDate && item.date !== activeDate) return false;
     return true;
   });
+  const selectedPoint =
+    activeId && activeDate
+      ? lines
+          .find((line) => line.boardId === activeId)
+          ?.points.find((point) => point.date === activeDate) || null
+      : null;
   const commentDays = groupCommentsByDay(visibleComments);
 
   return (
@@ -367,10 +373,17 @@ export function BoardEvolutionView({
             </button>
           ) : null}
         </div>
+        {selectedPoint ? (
+          <p className="mt-2 text-sm text-white">
+            Andamento neste dia:{" "}
+            <span className="font-semibold">{formatEvolutionPct(selectedPoint.pct)}%</span>
+          </p>
+        ) : null}
         {commentDays.length === 0 ? (
           <p className="mt-2 text-sm text-white/60">
-            Nenhuma atualização
-            {activeDate ? ` em ${formatEvolutionDate(activeDate)}` : " nestes boards"}.
+            {selectedPoint
+              ? "Sem outra atualização neste dia."
+              : "Nenhuma atualização nestes boards."}
           </p>
         ) : (
           <ol className="mt-3 space-y-4">
