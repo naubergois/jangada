@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { MessageCircle, TrendingUp } from "lucide-react";
 import {
   buildEvolutionLines,
@@ -43,9 +43,13 @@ function deltaLabel(points: EvolutionLine["points"]) {
 function EvolutionChart({
   lines,
   activeId,
+  activeDate,
+  onSelectPoint,
 }: {
   lines: EvolutionLine[];
   activeId: string | null;
+  activeDate: string | null;
+  onSelectPoint: (boardId: string, date: string) => void;
 }) {
   const dates = useMemo(() => {
     const set = new Set<string>();
@@ -77,8 +81,8 @@ function EvolutionChart({
     <svg
       viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
       className="h-auto w-full"
-      role="img"
-      aria-label="Linha de evolução do andamento de cada board"
+      role="group"
+      aria-label="Linha de evolução do andamento de cada board. Clique na bola para ver as atualizações daquele dia."
     >
       {[0, 25, 50, 75, 100].map((tick) => (
         <g key={tick}>
@@ -130,20 +134,34 @@ function EvolutionChart({
                 points={coords.join(" ")}
               />
             ) : null}
-            {line.points.map((point) => (
-              <circle
-                key={`${line.boardId}-${point.date}`}
-                cx={xOf(point.date)}
-                cy={yOf(point.pct)}
-                r="4"
-                fill={color}
-                stroke="rgba(0,0,0,0.35)"
-              >
-                <title>
-                  {`${line.title} · ${formatEvolutionDate(point.date)} · ${formatEvolutionPct(point.pct)}%`}
-                </title>
-              </circle>
-            ))}
+            {line.points.map((point) => {
+              const selected = activeId === line.boardId && activeDate === point.date;
+              const label = `${line.title} · ${formatEvolutionDate(point.date)} · ${formatEvolutionPct(point.pct)}%. Ver atualizações deste dia.`;
+              return (
+                <g
+                  key={`${line.boardId}-${point.date}`}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => onSelectPoint(line.boardId, point.date)}
+                >
+                  <circle
+                    cx={xOf(point.date)}
+                    cy={yOf(point.pct)}
+                    r="12"
+                    fill="transparent"
+                  />
+                  <circle
+                    cx={xOf(point.date)}
+                    cy={yOf(point.pct)}
+                    r={selected ? 6 : 4}
+                    fill={color}
+                    stroke={selected ? "#ffffff" : "rgba(0,0,0,0.35)"}
+                    strokeWidth={selected ? 2 : 1}
+                  >
+                    <title>{label}</title>
+                  </circle>
+                </g>
+              );
+            })}
           </g>
         );
       })}
@@ -174,6 +192,7 @@ export function BoardEvolutionView({
   const lists = useBoardStore((s) => s.lists);
   const cards = useBoardStore((s) => s.cards);
   const members = useBoardStore((s) => s.members);
+  const activities = useBoardStore((s) => s.activities);
   const lines = useMemo(
     () => buildEvolutionLines(boardId, boards),
     [boardId, boards],
@@ -186,13 +205,15 @@ export function BoardEvolutionView({
         lists,
         cards,
         members,
+        activities,
       }),
-    [boardId, boards, lists, cards, members],
+    [boardId, boards, lists, cards, members, activities],
   );
   const drawn = lines.filter((line) => line.points.length > 0);
   const missing = lines.filter((line) => line.points.length === 0);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeDate, setActiveDate] = useState<string | null>(null);
+  const updatesRef = useRef<HTMLDivElement | null>(null);
   const visibleComments = comments.filter((item) => {
     if (activeId && item.boardId !== activeId) return false;
     if (activeDate && item.date !== activeDate) return false;
@@ -211,7 +232,7 @@ export function BoardEvolutionView({
             Evolução
           </h2>
           <p className="text-xs text-white/65">
-            Linha de andamento de cada board e os comentários de cada dia.
+            Clique na bola para ver as atualizações daquele dia.
           </p>
         </div>
       </div>
@@ -224,7 +245,19 @@ export function BoardEvolutionView({
       ) : (
         <>
           <div className="mt-3">
-            <EvolutionChart lines={drawn} activeId={activeId} />
+            <EvolutionChart
+              lines={drawn}
+              activeId={activeId}
+              activeDate={activeDate}
+              onSelectPoint={(nextBoardId, date) => {
+                const same = activeId === nextBoardId && activeDate === date;
+                setActiveId(same ? null : nextBoardId);
+                setActiveDate(same ? null : date);
+                if (!same) {
+                  updatesRef.current?.scrollIntoView({ block: "nearest" });
+                }
+              }}
+            />
           </div>
           <ul className="mt-2 flex flex-wrap gap-1.5">
             {drawn.map((line, index) => {
@@ -310,14 +343,24 @@ export function BoardEvolutionView({
         </p>
       ) : null}
 
-      <div className="mt-4 border-t border-white/10 pt-3">
+      <div ref={updatesRef} className="mt-4 border-t border-white/10 pt-3">
         <div className="flex items-center gap-2">
           <MessageCircle className="h-4 w-4 text-[var(--accent)]" />
-          <h3 className="text-sm font-medium text-white">Comentários por dia</h3>
+          <h3 className="text-sm font-medium text-white">
+            {activeDate
+              ? `Atualizações de ${formatEvolutionDate(activeDate)}`
+              : "Atualizações por dia"}
+            {activeId && activeDate
+              ? ` · ${boards[activeId]?.title || ""}`
+              : ""}
+          </h3>
           {activeDate ? (
             <button
               type="button"
-              onClick={() => setActiveDate(null)}
+              onClick={() => {
+                setActiveDate(null);
+                setActiveId(null);
+              }}
               className="text-xs text-white/60 underline-offset-2 hover:text-white hover:underline"
             >
               Ver todos os dias
@@ -326,8 +369,8 @@ export function BoardEvolutionView({
         </div>
         {commentDays.length === 0 ? (
           <p className="mt-2 text-sm text-white/60">
-            Nenhum comentário nestes boards
-            {activeDate ? ` em ${formatEvolutionDate(activeDate)}` : ""}.
+            Nenhuma atualização
+            {activeDate ? ` em ${formatEvolutionDate(activeDate)}` : " nestes boards"}.
           </p>
         ) : (
           <ol className="mt-3 space-y-4">
@@ -346,8 +389,8 @@ export function BoardEvolutionView({
                     {formatEvolutionDate(group.date)}
                     <span className="ml-2 font-normal normal-case tracking-normal text-white/45">
                       {group.items.length === 1
-                        ? "1 comentário"
-                        : `${group.items.length} comentários`}
+                        ? "1 atualização"
+                        : `${group.items.length} atualizações`}
                     </span>
                   </button>
                   <ul className="mt-1.5 space-y-1.5">
@@ -362,7 +405,11 @@ export function BoardEvolutionView({
                           {item.boardTitle}
                           {" · "}
                           {item.cardTitle}
-                          {item.kind === "note" ? " · observação" : ""}
+                          {item.kind === "note"
+                            ? " · observação"
+                            : item.kind === "update"
+                              ? " · atualização"
+                              : " · comentário"}
                         </p>
                         <p className="mt-1 whitespace-pre-wrap text-sm text-white/90">
                           {item.body}

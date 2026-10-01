@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calendarDayKey } from "./calendar-report";
-import type { Board, Card, List } from "./types";
+import type { Board, Card, KanbanActivity, List } from "./types";
 import {
   absorbBoardEvolution,
   buildEvolutionLines,
@@ -209,5 +209,48 @@ describe("collectEvolutionDayComments", () => {
         kind: "note",
       },
     ]);
+  });
+
+  it("includes a board update from that day and skips a duplicate comment activity", () => {
+    const lists: Record<string, List> = {
+      lista: { id: "lista", boardId: "proj-farol", title: "Fazendo", cardIds: ["c1"] },
+    };
+    const activities: Record<string, KanbanActivity> = {
+      a1: {
+        id: "a1",
+        boardId: "proj-farol",
+        memberId: "charles",
+        date: "2026-08-28",
+        kind: "card_update",
+        cardId: "c1",
+        note: "Liberou versão parcial.",
+        createdAt: "2026-08-28T11:00:00.000Z",
+      },
+      a2: {
+        id: "a2",
+        boardId: "proj-farol",
+        memberId: "ana",
+        date: "2026-08-28",
+        kind: "card_comment",
+        cardId: "c1",
+        note: "Já está no comentário.",
+        createdAt: "2026-08-28T11:00:00.000Z",
+      },
+    };
+    const items = collectEvolutionDayComments({
+      boardId: "proj-farol",
+      boards: {
+        "proj-farol": board({ id: "proj-farol", title: "Farol" }),
+      },
+      lists,
+      cards: {
+        c1: card({ id: "c1", listId: "lista", title: "Validar Farol" }),
+      },
+      members: { charles: { name: "Charles" } },
+      activities,
+    });
+    expect(items.map((item) => item.id)).toEqual(["activity:a1"]);
+    expect(items[0].body).toBe("Liberou versão parcial.");
+    expect(items[0].kind).toBe("update");
   });
 });

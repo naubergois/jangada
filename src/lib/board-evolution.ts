@@ -1,6 +1,7 @@
 import { getDescendantBoards } from "./board-hierarchy";
 import { calendarDayKey } from "./calendar-report";
-import type { Board, Card, List, TeamMember } from "./types";
+import type { Board, Card, KanbanActivity, List, TeamMember } from "./types";
+import { activityKindLabel } from "./utils";
 import {
   absorbBoardEvolution,
   mergeEvolutionPoints,
@@ -62,7 +63,7 @@ export type EvolutionDayComment = {
   cardTitle: string;
   author: string;
   body: string;
-  kind: "comment" | "note";
+  kind: "comment" | "note" | "update";
 };
 
 /** Boards que entram na evolução: o aberto e cada projeto abaixo. */
@@ -80,6 +81,7 @@ export function collectEvolutionDayComments(input: {
   lists: Record<string, List>;
   cards: Record<string, Card>;
   members: Record<string, Pick<TeamMember, "name">>;
+  activities?: Record<string, KanbanActivity>;
 }): EvolutionDayComment[] {
   const ids = new Set(evolutionBoardIds(input.boardId, input.boards));
   const items: EvolutionDayComment[] = [];
@@ -120,6 +122,30 @@ export function collectEvolutionDayComments(input: {
         kind: "note",
       });
     }
+  }
+
+  for (const activity of Object.values(input.activities || {})) {
+    if (!ids.has(activity.boardId) || activity.kind === "card_comment") continue;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(activity.date || "")
+      ? activity.date
+      : activity.createdAt
+        ? calendarDayKey(new Date(activity.createdAt))
+        : "";
+    if (!date) continue;
+    const note = String(activity.note || "").trim();
+    const cardTitle = activity.cardId
+      ? input.cards[activity.cardId]?.title || ""
+      : "";
+    items.push({
+      id: `activity:${activity.id}`,
+      date,
+      boardId: activity.boardId,
+      boardTitle: input.boards[activity.boardId]?.title || "Board",
+      cardTitle,
+      author: input.members[activity.memberId]?.name || "Alguém",
+      body: note || activityKindLabel[activity.kind],
+      kind: "update",
+    });
   }
 
   return items.sort(
