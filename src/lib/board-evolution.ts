@@ -96,7 +96,20 @@ export function evolutionBoardIds(
   return buildEvolutionLines(boardId, boards).map((line) => line.boardId);
 }
 
-/** Comentários e observações do dia, nos boards da linha do tempo. */
+/** Comentário automático de origem, sem mudança do card. */
+function isSourceCitation(body: string) {
+  return /^fonte\s*:/i.test(body) && /trello\.com/i.test(body);
+}
+
+const CARD_CHANGE_LABEL: Partial<Record<KanbanActivity["kind"], string>> = {
+  card_create: "Criou o card",
+  card_update: "Atualizou o card",
+  card_move: "Moveu o card",
+  card_delete: "Excluiu o card",
+  card_archive: "Arquivou o card",
+};
+
+/** Comentários, observações e mudanças de card do dia. */
 export function collectEvolutionDayComments(input: {
   boardId: string;
   boards: Record<string, Board>;
@@ -135,7 +148,7 @@ export function collectEvolutionDayComments(input: {
 
     for (const comment of card.comments || []) {
       const body = String(comment.body || "").trim();
-      if (!body || !comment.createdAt) continue;
+      if (!body || isSourceCitation(body) || !comment.createdAt) continue;
       const created = new Date(comment.createdAt);
       if (Number.isNaN(created.getTime())) continue;
       items.push({
@@ -175,7 +188,7 @@ export function collectEvolutionDayComments(input: {
         : "";
     if (!date) continue;
     const note = String(activity.note || "").trim();
-    if (!note) continue;
+    if (!note && !CARD_CHANGE_LABEL[activity.kind]) continue;
     const cardTitle = activity.cardId
       ? input.cards[activity.cardId]?.title || ""
       : "";
@@ -186,7 +199,7 @@ export function collectEvolutionDayComments(input: {
       boardTitle: input.boards[activity.boardId]?.title || "Board",
       cardTitle,
       author: input.members[activity.memberId]?.name || "Alguém",
-      body: note || activityKindLabel[activity.kind],
+      body: note || CARD_CHANGE_LABEL[activity.kind] || activityKindLabel[activity.kind],
       kind: "update",
     });
   }

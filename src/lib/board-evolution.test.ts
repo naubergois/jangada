@@ -254,7 +254,7 @@ describe("collectEvolutionDayComments", () => {
     expect(items[0].kind).toBe("update");
   });
 
-  it("shows the board summary on the day written in the heading and skips a move without text", () => {
+  it("shows the board summary and a card move even when the move has no note", () => {
     const items = collectEvolutionDayComments({
       boardId: "proj-farol",
       boards: {
@@ -280,17 +280,54 @@ describe("collectEvolutionDayComments", () => {
       },
       reference: new Date(2026, 9, 1),
     });
-    expect(items).toEqual([
-      {
-        id: "summary:proj-farol",
-        date: "2026-09-28",
-        boardId: "proj-farol",
-        boardTitle: "Farol",
-        cardTitle: "",
-        author: "Resumo",
-        body: "Farol — 28/09 (áudios)\n\nAna validou o diagnóstico.",
-        kind: "summary",
+    expect(items.map((item) => item.id)).toEqual(["summary:proj-farol", "activity:a1"]);
+    expect(items[1]).toMatchObject({
+      date: "2026-09-28",
+      cardTitle: "",
+      body: "Moveu o card",
+      kind: "update",
+    });
+  });
+
+  it("hides a Trello source comment and keeps the card change", () => {
+    const lists: Record<string, List> = {
+      lista: { id: "lista", boardId: "proj-farol", title: "Fazendo", cardIds: ["c1"] },
+    };
+    const items = collectEvolutionDayComments({
+      boardId: "proj-farol",
+      boards: {
+        "proj-farol": board({ id: "proj-farol", title: "Farol" }),
       },
-    ]);
+      lists,
+      cards: {
+        c1: card({
+          id: "c1",
+          listId: "lista",
+          title: "Validar Farol",
+          comments: [
+            {
+              id: "fonte",
+              authorId: "ana",
+              body: "Fonte: Farol. Trello: https://trello.com/b/Rl7Cb3rj/asesi.",
+              createdAt: "2026-08-26T02:16:55.267Z",
+            },
+          ],
+        }),
+      },
+      members: { ana: { name: "Ana" } },
+      activities: {
+        mov: {
+          id: "mov",
+          boardId: "proj-farol",
+          memberId: "ana",
+          date: "2026-08-26",
+          kind: "card_move",
+          cardId: "c1",
+          createdAt: "2026-08-26T15:00:00.000Z",
+        },
+      },
+    });
+    expect(items.map((item) => item.id)).toEqual(["activity:mov"]);
+    expect(items[0].cardTitle).toBe("Validar Farol");
   });
 });
