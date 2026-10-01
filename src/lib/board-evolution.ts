@@ -44,7 +44,11 @@ export function pointsForBoard(
  * meio do texto, como prazo 31/12, não entra na linha.
  */
 export function boardUpdateDates(
-  board: Pick<Board, "executiveSummary" | "objectives" | "description">,
+  board: {
+    executiveSummary?: string;
+    objectives?: string;
+    description?: string;
+  },
   reference = new Date(),
 ): string[] {
   const found = new Set<string>();
