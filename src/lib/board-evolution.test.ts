@@ -10,6 +10,25 @@ import {
 
 const REF = new Date(Date.UTC(2026, 9, 1));
 
+function card(over: Partial<Card> & Pick<Card, "id" | "listId" | "title">): Card {
+  return {
+    description: "",
+    labels: [],
+    dueDate: null,
+    priority: null,
+    assigneeId: null,
+    requirementId: null,
+    acceptanceCriteria: "",
+    checklist: [],
+    comments: [],
+    dailyNotes: [],
+    archived: false,
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    ...over,
+  };
+}
+
 function board(over: Partial<Board> & Pick<Board, "id" | "title">): Board {
   return {
     description: "",
@@ -122,7 +141,7 @@ describe("collectEvolutionDayComments", () => {
       outro: { id: "outro", boardId: "fora", title: "Fazendo", cardIds: ["c2"] },
     };
     const cards = {
-      c1: {
+      c1: card({
         id: "c1",
         listId: "lista",
         title: "Validar Farol",
@@ -140,16 +159,15 @@ describe("collectEvolutionDayComments", () => {
             updatedAt: commentAt,
           },
         ],
-      } as Card,
-      c2: {
+      }),
+      c2: card({
         id: "c2",
         listId: "outro",
         title: "Fora do quadro",
         comments: [
           { id: "k2", authorId: "ana", body: "Não entra.", createdAt: commentAt },
         ],
-        dailyNotes: [],
-      } as Card,
+      }),
     };
     const items = collectEvolutionDayComments({
       boardId: "asesi",
