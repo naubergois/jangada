@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { MessageCircle, TrendingUp } from "lucide-react";
 import {
+  boardUpdateDates,
   buildEvolutionLines,
   collectEvolutionDayComments,
   extendLinePastLastPoint,
@@ -230,20 +231,17 @@ export function BoardEvolutionView({
   );
   const drawn = lines.filter((line) => line.points.length > 0);
   const chartLines = useMemo(() => {
-    const datesByBoard = new Map<string, string[]>();
-    for (const item of comments) {
-      if (item.kind !== "summary") continue;
-      const list = datesByBoard.get(item.boardId) ?? [];
-      list.push(item.date);
-      datesByBoard.set(item.boardId, list);
-    }
     return lines
       .filter((line) => line.points.length > 0)
-      .map((line) => ({
-        ...line,
-        points: extendLinePastLastPoint(line.points, datesByBoard.get(line.boardId) ?? []),
-      }));
-  }, [comments, lines]);
+      .map((line) => {
+        const board = boards[line.boardId];
+        if (!board) return line;
+        return {
+          ...line,
+          points: extendLinePastLastPoint(line.points, boardUpdateDates(board)),
+        };
+      });
+  }, [boards, lines]);
   const missing = lines.filter((line) => line.points.length === 0);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeDate, setActiveDate] = useState<string | null>(null);

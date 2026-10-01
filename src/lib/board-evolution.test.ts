@@ -3,6 +3,7 @@ import { calendarDayKey } from "./calendar-report";
 import type { Board, Card, KanbanActivity, List } from "./types";
 import {
   absorbBoardEvolution,
+  boardUpdateDates,
   buildEvolutionLines,
   collectEvolutionDayComments,
   extendLinePastLastPoint,
@@ -374,5 +375,18 @@ describe("extendLinePastLastPoint", () => {
     expect(points[3]).toEqual({ date: "2026-09-18", pct: 38, carried: true });
     expect(points[4].pct).toBe(38);
     expect(points[2].carried).toBeUndefined();
+  });
+});
+
+describe("boardUpdateDates", () => {
+  it("keeps the header and day lines and ignores a deadline written in the text", () => {
+    const dates = boardUpdateDates(
+      {
+        executiveSummary:
+          "Farol — 28/09 (áudios)\n\n18/09: Charles: testes do Farol.\n\nPrazo SIGE: 01/07 a 31/12/2026.",
+      },
+      new Date(2026, 9, 1),
+    );
+    expect([...dates].sort()).toEqual(["2026-09-18", "2026-09-28"]);
   });
 });

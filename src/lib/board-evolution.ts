@@ -39,6 +39,39 @@ export function pointsForBoard(
 }
 
 /**
+ * Dias em que o board foi escrito: o cabeçalho ("Farol — 28/09") e cada
+ * parágrafo que começa com a data ("18/09: Charles"). Uma data citada no
+ * meio do texto, como prazo 31/12, não entra na linha.
+ */
+export function boardUpdateDates(
+  board: Pick<Board, "executiveSummary" | "objectives" | "description">,
+  reference = new Date(),
+): string[] {
+  const found = new Set<string>();
+  const firstLine = String(board.executiveSummary || "").split(/\n/, 1)[0] || "";
+  const headerFull = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(firstLine);
+  const headerShort = /(\d{1,2})\/(\d{1,2})/.exec(firstLine);
+  const header = headerFull
+    ? datedIso(headerFull[1], headerFull[2], Number(headerFull[3]))
+    : headerShort
+      ? evolutionDateIso(headerShort[1], headerShort[2], reference)
+      : null;
+  if (header) found.add(header);
+  const text = [board.executiveSummary, board.objectives, board.description]
+    .filter(Boolean)
+    .join("\n\n");
+  for (const chunk of textParagraphs(text)) {
+    const lead = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?(?!\d)/.exec(chunk);
+    if (!lead) continue;
+    const date = lead[3]
+      ? datedIso(lead[1], lead[2], Number(lead[3]))
+      : evolutionDateIso(lead[1], lead[2], reference);
+    if (date) found.add(date);
+  }
+  return [...found];
+}
+
+/**
  * Leva a linha até os dias com texto que vêm depois do último percentual.
  * O percentual não muda: a bola marca o dia para abrir o texto.
  */
