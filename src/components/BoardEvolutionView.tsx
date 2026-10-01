@@ -5,6 +5,7 @@ import { MessageCircle, TrendingUp } from "lucide-react";
 import {
   buildEvolutionLines,
   collectEvolutionDayComments,
+  extendLinePastLastPoint,
   formatEvolutionDate,
   formatEvolutionPct,
   type EvolutionDayComment,
@@ -152,7 +153,9 @@ function EvolutionChart({
             {line.points.map((point) => {
               const selected = activeDate === point.date;
               const focused = selected && activeId === line.boardId;
-              const label = `${line.title} · ${formatEvolutionDate(point.date)} · ${formatEvolutionPct(point.pct)}%. Ver o texto dos boards neste dia.`;
+              const label = point.carried
+                ? `${line.title} · ${formatEvolutionDate(point.date)} · texto do dia. Andamento segue em ${formatEvolutionPct(point.pct)}%.`
+                : `${line.title} · ${formatEvolutionDate(point.date)} · ${formatEvolutionPct(point.pct)}%. Ver o texto dos boards neste dia.`;
               return (
                 <g
                   key={`${line.boardId}-${point.date}`}
@@ -168,7 +171,7 @@ function EvolutionChart({
                   <circle
                     cx={xOf(point.date)}
                     cy={yOf(point.pct)}
-                    r={focused ? 6 : selected ? 5 : 4}
+                    r={focused ? 6 : selected ? 5 : point.carried ? 3.5 : 4}
                     fill={color}
                     stroke={selected ? "#ffffff" : "rgba(0,0,0,0.35)"}
                     strokeWidth={selected ? 2 : 1}
@@ -226,6 +229,21 @@ export function BoardEvolutionView({
     [boardId, boards, lists, cards, members, activities],
   );
   const drawn = lines.filter((line) => line.points.length > 0);
+  const chartLines = useMemo(() => {
+    const datesByBoard = new Map<string, string[]>();
+    for (const item of comments) {
+      if (item.kind !== "summary") continue;
+      const list = datesByBoard.get(item.boardId) ?? [];
+      list.push(item.date);
+      datesByBoard.set(item.boardId, list);
+    }
+    return lines
+      .filter((line) => line.points.length > 0)
+      .map((line) => ({
+        ...line,
+        points: extendLinePastLastPoint(line.points, datesByBoard.get(line.boardId) ?? []),
+      }));
+  }, [comments, lines]);
   const missing = lines.filter((line) => line.points.length === 0);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeDate, setActiveDate] = useState<string | null>(null);
@@ -268,7 +286,7 @@ export function BoardEvolutionView({
         <>
           <div className="mt-3">
             <EvolutionChart
-              lines={drawn}
+              lines={chartLines}
               activeId={activeId}
               activeDate={activeDate}
               onSelectPoint={(nextBoardId, date) => {

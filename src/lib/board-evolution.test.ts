@@ -5,6 +5,7 @@ import {
   absorbBoardEvolution,
   buildEvolutionLines,
   collectEvolutionDayComments,
+  extendLinePastLastPoint,
   parseEvolutionPoints,
 } from "./board-evolution";
 
@@ -350,5 +351,28 @@ describe("collectEvolutionDayComments", () => {
     const byDate = Object.fromEntries(items.map((item) => [item.date, item.body]));
     expect(byDate["2026-09-28"]).toContain("Ana validou o diagnóstico.");
     expect(byDate["2026-08-28"]).toContain("validação COAUD");
+  });
+});
+
+describe("extendLinePastLastPoint", () => {
+  it("keeps the Farol line going through later text days at the last percent", () => {
+    const points = extendLinePastLastPoint(
+      [
+        { date: "2026-08-21", pct: 30 },
+        { date: "2026-08-28", pct: 30 },
+        { date: "2026-09-09", pct: 38 },
+      ],
+      ["2026-09-09", "2026-09-18", "2026-09-28", "2026-08-25"],
+    );
+    expect(points.map((point) => point.date)).toEqual([
+      "2026-08-21",
+      "2026-08-28",
+      "2026-09-09",
+      "2026-09-18",
+      "2026-09-28",
+    ]);
+    expect(points[3]).toEqual({ date: "2026-09-18", pct: 38, carried: true });
+    expect(points[4].pct).toBe(38);
+    expect(points[2].carried).toBeUndefined();
   });
 });

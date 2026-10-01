@@ -13,6 +13,8 @@ export type BoardEvolutionPoint = {
   /** YYYY-MM-DD */
   date: string;
   pct: number;
+  /** Dia com texto, sem percentual novo. A linha repete o último andamento. */
+  carried?: boolean;
 };
 
 export type EvolutionLine = {
@@ -34,6 +36,27 @@ export function pointsForBoard(
     board.evolution,
     parseEvolutionPoints(text, reference),
   ) as BoardEvolutionPoint[];
+}
+
+/**
+ * Leva a linha até os dias com texto que vêm depois do último percentual.
+ * O percentual não muda: a bola marca o dia para abrir o texto.
+ */
+export function extendLinePastLastPoint(
+  points: BoardEvolutionPoint[],
+  textDates: string[],
+): BoardEvolutionPoint[] {
+  if (points.length === 0) return [];
+  const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  const last = sorted[sorted.length - 1];
+  const known = new Set(sorted.map((point) => point.date));
+  const extra = [...new Set(textDates)]
+    .filter((date) => date > last.date && !known.has(date))
+    .sort();
+  return [
+    ...sorted.map((point) => ({ date: point.date, pct: point.pct })),
+    ...extra.map((date) => ({ date, pct: last.pct, carried: true })),
+  ];
 }
 
 /** Uma linha por board: o aberto e, se houver, cada projeto abaixo dele. */
