@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Board } from "./types";
+import { calendarDayKey } from "./calendar-report";
+import type { Board, Card, List } from "./types";
 import {
   absorbBoardEvolution,
   buildEvolutionLines,
+  collectEvolutionDayComments,
   parseEvolutionPoints,
 } from "./board-evolution";
 
@@ -109,5 +111,85 @@ describe("buildEvolutionLines", () => {
     expect(lines[0].points.map((point) => point.pct)).toEqual([32, 41]);
     expect(lines[1].points).toHaveLength(2);
     expect(lines[2].points).toEqual([]);
+  });
+});
+
+describe("collectEvolutionDayComments", () => {
+  it("groups card comments and daily notes by the day they belong to", () => {
+    const commentAt = new Date(2026, 7, 21, 10, 30, 0).toISOString();
+    const lists: Record<string, List> = {
+      lista: { id: "lista", boardId: "proj-farol", title: "Fazendo", cardIds: ["c1"] },
+      outro: { id: "outro", boardId: "fora", title: "Fazendo", cardIds: ["c2"] },
+    };
+    const cards = {
+      c1: {
+        id: "c1",
+        listId: "lista",
+        title: "Validar Farol",
+        comments: [
+          { id: "k1", authorId: "ana", body: "  Validado na COAUD.  ", createdAt: commentAt },
+          { id: "vazio", authorId: "ana", body: "   ", createdAt: commentAt },
+        ],
+        dailyNotes: [
+          {
+            id: "n1",
+            date: "2026-08-28",
+            body: "Charles começou a correção.",
+            authorId: "charles",
+            createdAt: commentAt,
+            updatedAt: commentAt,
+          },
+        ],
+      } as Card,
+      c2: {
+        id: "c2",
+        listId: "outro",
+        title: "Fora do quadro",
+        comments: [
+          { id: "k2", authorId: "ana", body: "Não entra.", createdAt: commentAt },
+        ],
+        dailyNotes: [],
+      } as Card,
+    };
+    const items = collectEvolutionDayComments({
+      boardId: "asesi",
+      boards: {
+        asesi: board({
+          id: "asesi",
+          title: "ASESI",
+          level: "team",
+          parentBoardId: "cge",
+        }),
+        "proj-farol": board({ id: "proj-farol", title: "Farol" }),
+      },
+      lists,
+      cards,
+      members: {
+        ana: { name: "Ana" },
+        charles: { name: "Charles" },
+      },
+    });
+    expect(items).toEqual([
+      {
+        id: "comment:k1",
+        date: calendarDayKey(new Date(commentAt)),
+        boardId: "proj-farol",
+        boardTitle: "Farol",
+        cardTitle: "Validar Farol",
+        author: "Ana",
+        body: "Validado na COAUD.",
+        kind: "comment",
+      },
+      {
+        id: "note:n1",
+        date: "2026-08-28",
+        boardId: "proj-farol",
+        boardTitle: "Farol",
+        cardTitle: "Validar Farol",
+        author: "Charles",
+        body: "Charles começou a correção.",
+        kind: "note",
+      },
+    ]);
   });
 });

@@ -1,5 +1,6 @@
 import { getDescendantBoards } from "./board-hierarchy";
-import type { Board } from "./types";
+import { calendarDayKey } from "./calendar-report";
+import type { Board, Card, List, TeamMember } from "./types";
 import {
   absorbBoardEvolution,
   mergeEvolutionPoints,
@@ -50,6 +51,84 @@ export function buildEvolutionLines(
     title: item.title,
     points: pointsForBoard(item, reference),
   }));
+}
+
+export type EvolutionDayComment = {
+  id: string;
+  /** YYYY-MM-DD */
+  date: string;
+  boardId: string;
+  boardTitle: string;
+  cardTitle: string;
+  author: string;
+  body: string;
+  kind: "comment" | "note";
+};
+
+/** Boards que entram na evolução: o aberto e cada projeto abaixo. */
+export function evolutionBoardIds(
+  boardId: string,
+  boards: Record<string, Board>,
+): string[] {
+  return buildEvolutionLines(boardId, boards).map((line) => line.boardId);
+}
+
+/** Comentários e observações do dia, nos boards da linha do tempo. */
+export function collectEvolutionDayComments(input: {
+  boardId: string;
+  boards: Record<string, Board>;
+  lists: Record<string, List>;
+  cards: Record<string, Card>;
+  members: Record<string, Pick<TeamMember, "name">>;
+}): EvolutionDayComment[] {
+  const ids = new Set(evolutionBoardIds(input.boardId, input.boards));
+  const items: EvolutionDayComment[] = [];
+
+  for (const card of Object.values(input.cards)) {
+    const list = input.lists[card.listId];
+    if (!list || !ids.has(list.boardId)) continue;
+    const boardTitle = input.boards[list.boardId]?.title || "Board";
+
+    for (const comment of card.comments || []) {
+      const body = String(comment.body || "").trim();
+      if (!body || !comment.createdAt) continue;
+      const created = new Date(comment.createdAt);
+      if (Number.isNaN(created.getTime())) continue;
+      items.push({
+        id: `comment:${comment.id}`,
+        date: calendarDayKey(created),
+        boardId: list.boardId,
+        boardTitle,
+        cardTitle: card.title,
+        author: input.members[comment.authorId || ""]?.name || "Alguém",
+        body,
+        kind: "comment",
+      });
+    }
+
+    for (const note of card.dailyNotes || []) {
+      const body = String(note.body || "").trim();
+      if (!body || !/^\d{4}-\d{2}-\d{2}$/.test(note.date || "")) continue;
+      items.push({
+        id: `note:${note.id}`,
+        date: note.date,
+        boardId: list.boardId,
+        boardTitle,
+        cardTitle: card.title,
+        author: input.members[note.authorId || ""]?.name || "Alguém",
+        body,
+        kind: "note",
+      });
+    }
+  }
+
+  return items.sort(
+    (a, b) =>
+      a.date.localeCompare(b.date) ||
+      a.boardTitle.localeCompare(b.boardTitle, "pt-BR") ||
+      a.cardTitle.localeCompare(b.cardTitle, "pt-BR") ||
+      a.id.localeCompare(b.id),
+  );
 }
 
 export function formatEvolutionDate(iso: string): string {

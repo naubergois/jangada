@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { TrendingUp } from "lucide-react";
+import { MessageCircle, TrendingUp } from "lucide-react";
 import {
   buildEvolutionLines,
+  collectEvolutionDayComments,
   formatEvolutionDate,
   formatEvolutionPct,
+  type EvolutionDayComment,
   type EvolutionLine,
 } from "@/lib/board-evolution";
+import { useBoardStore } from "@/lib/store";
 import type { Board } from "@/lib/types";
 
 const COLORS = [
@@ -148,6 +151,19 @@ function EvolutionChart({
   );
 }
 
+function groupCommentsByDay(items: EvolutionDayComment[]) {
+  const groups: { date: string; items: EvolutionDayComment[] }[] = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (!last || last.date !== item.date) {
+      groups.push({ date: item.date, items: [item] });
+    } else {
+      last.items.push(item);
+    }
+  }
+  return groups;
+}
+
 export function BoardEvolutionView({
   boardId,
   boards,
@@ -155,13 +171,34 @@ export function BoardEvolutionView({
   boardId: string;
   boards: Record<string, Board>;
 }) {
+  const lists = useBoardStore((s) => s.lists);
+  const cards = useBoardStore((s) => s.cards);
+  const members = useBoardStore((s) => s.members);
   const lines = useMemo(
     () => buildEvolutionLines(boardId, boards),
     [boardId, boards],
   );
+  const comments = useMemo(
+    () =>
+      collectEvolutionDayComments({
+        boardId,
+        boards,
+        lists,
+        cards,
+        members,
+      }),
+    [boardId, boards, lists, cards, members],
+  );
   const drawn = lines.filter((line) => line.points.length > 0);
   const missing = lines.filter((line) => line.points.length === 0);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeDate, setActiveDate] = useState<string | null>(null);
+  const visibleComments = comments.filter((item) => {
+    if (activeId && item.boardId !== activeId) return false;
+    if (activeDate && item.date !== activeDate) return false;
+    return true;
+  });
+  const commentDays = groupCommentsByDay(visibleComments);
 
   return (
     <section className="rounded-2xl border border-white/15 bg-black/25 p-3 sm:p-4">
@@ -174,7 +211,7 @@ export function BoardEvolutionView({
             Evolução
           </h2>
           <p className="text-xs text-white/65">
-            Linha de andamento de cada board, a partir do percentual datado no resumo.
+            Linha de andamento de cada board e os comentários de cada dia.
           </p>
         </div>
       </div>
@@ -198,7 +235,10 @@ export function BoardEvolutionView({
                 <li key={line.boardId}>
                   <button
                     type="button"
-                    onClick={() => setActiveId(on ? null : line.boardId)}
+                    onClick={() => {
+                      setActiveId(on ? null : line.boardId);
+                      setActiveDate(null);
+                    }}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
                       on
                         ? "border-white/50 bg-white/15 text-white"
@@ -269,6 +309,73 @@ export function BoardEvolutionView({
           Sem percentual datado: {missing.map((line) => line.title).join(", ")}.
         </p>
       ) : null}
+
+      <div className="mt-4 border-t border-white/10 pt-3">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="h-4 w-4 text-[var(--accent)]" />
+          <h3 className="text-sm font-medium text-white">Comentários por dia</h3>
+          {activeDate ? (
+            <button
+              type="button"
+              onClick={() => setActiveDate(null)}
+              className="text-xs text-white/60 underline-offset-2 hover:text-white hover:underline"
+            >
+              Ver todos os dias
+            </button>
+          ) : null}
+        </div>
+        {commentDays.length === 0 ? (
+          <p className="mt-2 text-sm text-white/60">
+            Nenhum comentário nestes boards
+            {activeDate ? ` em ${formatEvolutionDate(activeDate)}` : ""}.
+          </p>
+        ) : (
+          <ol className="mt-3 space-y-4">
+            {commentDays.map((group) => {
+              const on = activeDate === group.date;
+              return (
+                <li key={group.date}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveDate(on ? null : group.date)}
+                    className={`text-xs font-semibold uppercase tracking-wide ${
+                      on ? "text-white" : "text-white/55 hover:text-white"
+                    }`}
+                    aria-pressed={on}
+                  >
+                    {formatEvolutionDate(group.date)}
+                    <span className="ml-2 font-normal normal-case tracking-normal text-white/45">
+                      {group.items.length === 1
+                        ? "1 comentário"
+                        : `${group.items.length} comentários`}
+                    </span>
+                  </button>
+                  <ul className="mt-1.5 space-y-1.5">
+                    {group.items.map((item) => (
+                      <li
+                        key={item.id}
+                        className="rounded-xl border border-white/10 bg-black/20 px-3 py-2"
+                      >
+                        <p className="text-[11px] text-white/55">
+                          <span className="text-white/80">{item.author}</span>
+                          {" · "}
+                          {item.boardTitle}
+                          {" · "}
+                          {item.cardTitle}
+                          {item.kind === "note" ? " · observação" : ""}
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-white/90">
+                          {item.body}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
     </section>
   );
 }
