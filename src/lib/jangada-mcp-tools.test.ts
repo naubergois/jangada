@@ -82,6 +82,19 @@ describe("jangada MCP snapshot tools", () => {
     );
   });
 
+  it("keeps dated progress when a later summary replaces the text", () => {
+    const first = applyAtualizarResumo(snapshot(), {
+      resumo: "Andamento operacional ASESI (21/08): 40%.",
+    });
+    const second = applyAtualizarResumo(first.snapshot, {
+      resumo: "Andamento operacional ASESI (28/08): 48%.",
+    });
+    expect(second.snapshot.board.evolution).toEqual([
+      { date: expect.stringMatching(/^\d{4}-08-21$/), pct: 40 },
+      { date: expect.stringMatching(/^\d{4}-08-28$/), pct: 48 },
+    ]);
+  });
+
   it("adds, edits and removes WhatsApp group metadata on a board", () => {
     const added = applyAdicionarWhatsApp(snapshot(), {
       name: "Grupo WhatsApp ASESI",

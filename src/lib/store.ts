@@ -29,6 +29,7 @@ import type {
 import { buildMeetingRoomSlug, createSampleWorkspace, defaultManagerQuestions } from "./sample-data";
 import { createAsesiBoardSeed, createCgeBoardSeed } from "./asesi-seed";
 import { ASESI_BOARD_ID, CGE_BOARD_ID, MAYA_RISKS_LIST_KEY, MAYA_RISKS_LIST_TITLE } from "./constants";
+import { absorbBoardEvolution } from "./board-evolution";
 import type { BoardSnapshot } from "./board-snapshot";
 import type { AiAction } from "./types";
 import {
@@ -622,12 +623,15 @@ export const useBoardStore = create<BoardState>()(
         set((state) => {
           const board = state.boards[boardId];
           if (!board) return state;
+          const summary = sanitizeExecutiveSummary(executiveSummary);
+          const evolution = absorbBoardEvolution(board.evolution, summary);
           return {
             boards: {
               ...state.boards,
               [boardId]: {
                 ...ensureBoardMembers(board),
-                executiveSummary: sanitizeExecutiveSummary(executiveSummary),
+                executiveSummary: summary,
+                ...(evolution.length ? { evolution } : {}),
                 updatedAt: new Date().toISOString(),
               },
             },

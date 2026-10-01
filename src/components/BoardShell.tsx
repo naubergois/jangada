@@ -8,6 +8,7 @@ import {
   Home,
   LayoutGrid,
   MessageCircle,
+  TrendingUp,
   MoreHorizontal,
   Palette,
   Pencil,
@@ -58,6 +59,7 @@ import { extractBoardIndicators } from "@/lib/board-indicators";
 import { extractGoalAttainment } from "@/lib/goal-attainment";
 import { BoardIndicators } from "@/components/BoardIndicators";
 import { GoalAttainmentPanel } from "@/components/GoalAttainmentPanel";
+import { BoardEvolutionView } from "@/components/BoardEvolutionView";
 import { BoardExecutiveSummary } from "@/components/BoardExecutiveSummary";
 import {
   applyMayaSuggestionFilter,
@@ -147,7 +149,7 @@ export function BoardShell({
   );
   const hasChildBoards = descendantIds.length > 0;
   const [canvasView, setCanvasView] = useState<"local" | "all">("all");
-  const [boardLayout, setBoardLayout] = useState<"kanban" | "team">("kanban");
+  const [boardLayout, setBoardLayout] = useState<"kanban" | "team" | "evolution">("kanban");
   const scopeBoardIds = useMemo(
     () => (canvasView === "all" ? [boardId, ...descendantIds] : [boardId]),
     [canvasView, boardId, descendantIds],
@@ -756,6 +758,18 @@ export function BoardShell({
                   <CalendarRange className="h-3.5 w-3.5" />
                   Por pessoa
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setBoardLayout("evolution")}
+                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                    boardLayout === "evolution"
+                      ? "bg-white text-[#0079bf]"
+                      : "text-white/70 hover:text-white"
+                  }`}
+                >
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Evolução
+                </button>
               </div>
               {descendantIds.length > 0 ? (
                 <div className="flex shrink-0 gap-1 rounded-xl border border-white/15 bg-black/15 p-0.5">
@@ -805,7 +819,9 @@ export function BoardShell({
               }}
             />
             <div className="flex flex-col pb-8">
-              {boardLayout === "team" ? (
+              {boardLayout === "evolution" ? (
+                <BoardEvolutionView boardId={board.id} boards={boards} />
+              ) : boardLayout === "team" ? (
                 <TeamBoardView
                   boardId={board.id}
                   filter={cardFilter}

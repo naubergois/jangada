@@ -249,6 +249,8 @@ export interface Board {
   whatsappGroups?: BoardWhatsAppGroup[];
   /** Última análise de riscos + Git da Maya */
   riskReport?: BoardRiskReport | null;
+  /** Pontos de andamento já vistos no resumo (YYYY-MM-DD → %). Não some quando o texto muda. */
+  evolution?: { date: string; pct: number }[];
   createdAt: string;
   updatedAt: string;
 }

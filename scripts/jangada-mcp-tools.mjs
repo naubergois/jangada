@@ -5,6 +5,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { absorbBoardEvolution } from "../src/lib/board-evolution-parse.mjs";
 import crypto from "node:crypto";
 import pg from "pg";
 
@@ -424,7 +425,10 @@ export function applyRemoverWhatsApp(snapshot, args) {
 export function applyAtualizarResumo(snapshot, args) {
   const text = String(args.resumo ?? args.executive_summary ?? args.executiveSummary ?? "");
   const next = clone(snapshot);
-  next.board.executiveSummary = text.replace(/\r\n/g, "\n").trim().slice(0, 8000);
+  const summary = text.replace(/\r\n/g, "\n").trim().slice(0, 8000);
+  const evolution = absorbBoardEvolution(next.board.evolution, summary);
+  next.board.executiveSummary = summary;
+  if (evolution.length) next.board.evolution = evolution;
   const ts = nowIso();
   next.board.updatedAt = ts;
   next.updatedAt = ts;
