@@ -430,7 +430,7 @@ export function BoardEvolutionView({
             </table>
           </div>
         </>
-      )}
+      ) : null}
 
       {missing.length > 0 && drawn.length > 0 ? (
         <p className="mt-3 text-xs text-white/55">
