@@ -189,16 +189,6 @@ describe("collectEvolutionDayComments", () => {
     });
     expect(items).toEqual([
       {
-        id: "comment:k1",
-        date: calendarDayKey(new Date(commentAt)),
-        boardId: "proj-farol",
-        boardTitle: "Farol",
-        cardTitle: "Validar Farol",
-        author: "Ana",
-        body: "Validado na COAUD.",
-        kind: "comment",
-      },
-      {
         id: "note:n1",
         date: "2026-08-28",
         boardId: "proj-farol",
@@ -207,6 +197,16 @@ describe("collectEvolutionDayComments", () => {
         author: "Charles",
         body: "Charles começou a correção.",
         kind: "note",
+      },
+      {
+        id: "comment:k1",
+        date: calendarDayKey(new Date(commentAt)),
+        boardId: "proj-farol",
+        boardTitle: "Farol",
+        cardTitle: "Validar Farol",
+        author: "Ana",
+        body: "Validado na COAUD.",
+        kind: "comment",
       },
     ]);
   });
@@ -252,5 +252,45 @@ describe("collectEvolutionDayComments", () => {
     expect(items.map((item) => item.id)).toEqual(["activity:a1"]);
     expect(items[0].body).toBe("Liberou versão parcial.");
     expect(items[0].kind).toBe("update");
+  });
+
+  it("shows the board summary on the day written in the heading and skips a move without text", () => {
+    const items = collectEvolutionDayComments({
+      boardId: "proj-farol",
+      boards: {
+        "proj-farol": board({
+          id: "proj-farol",
+          title: "Farol",
+          executiveSummary: "Farol — 28/09 (áudios)\n\nAna validou o diagnóstico.",
+        }),
+      },
+      lists: {},
+      cards: {},
+      members: {},
+      activities: {
+        a1: {
+          id: "a1",
+          boardId: "proj-farol",
+          memberId: "ana",
+          date: "2026-09-28",
+          kind: "card_move",
+          note: "",
+          createdAt: "2026-09-28T12:00:00.000Z",
+        },
+      },
+      reference: new Date(2026, 9, 1),
+    });
+    expect(items).toEqual([
+      {
+        id: "summary:proj-farol",
+        date: "2026-09-28",
+        boardId: "proj-farol",
+        boardTitle: "Farol",
+        cardTitle: "",
+        author: "Resumo",
+        body: "Farol — 28/09 (áudios)\n\nAna validou o diagnóstico.",
+        kind: "summary",
+      },
+    ]);
   });
 });

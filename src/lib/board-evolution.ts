@@ -4,6 +4,7 @@ import type { Board, Card, KanbanActivity, List, TeamMember } from "./types";
 import { activityKindLabel } from "./utils";
 import {
   absorbBoardEvolution,
+  evolutionDateIso,
   mergeEvolutionPoints,
   parseEvolutionPoints,
 } from "./board-evolution-parse.mjs";
@@ -63,8 +64,29 @@ export type EvolutionDayComment = {
   cardTitle: string;
   author: string;
   body: string;
-  kind: "comment" | "note" | "update";
+  kind: "comment" | "note" | "update" | "summary";
 };
+
+function datedIso(day: string, month: string, year: number): string | null {
+  const d = Number(day);
+  const m = Number(month);
+  if (!Number.isInteger(d) || !Number.isInteger(m) || m < 1 || m > 12 || d < 1 || d > 31) {
+    return null;
+  }
+  const dt = new Date(Date.UTC(year, m - 1, d));
+  if (dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+  return `${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/** Data do resumo, no começo do texto: "Farol — 28/09" ou "Andamento (28/08): 25%". */
+export function summaryUpdateDate(text: string, reference = new Date()): string | null {
+  const head = String(text || "").slice(0, 180);
+  const full = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(head);
+  if (full) return datedIso(full[1], full[2], Number(full[3]));
+  const short = /(\d{1,2})\/(\d{1,2})/.exec(head);
+  if (!short) return null;
+  return evolutionDateIso(short[1], short[2], reference);
+}
 
 /** Boards que entram na evolução: o aberto e cada projeto abaixo. */
 export function evolutionBoardIds(
@@ -82,9 +104,29 @@ export function collectEvolutionDayComments(input: {
   cards: Record<string, Card>;
   members: Record<string, Pick<TeamMember, "name">>;
   activities?: Record<string, KanbanActivity>;
+  reference?: Date;
 }): EvolutionDayComment[] {
   const ids = new Set(evolutionBoardIds(input.boardId, input.boards));
+  const reference = input.reference ?? new Date();
   const items: EvolutionDayComment[] = [];
+
+  for (const id of ids) {
+    const board = input.boards[id];
+    const body = String(board?.executiveSummary || "").trim();
+    if (!body) continue;
+    const date = summaryUpdateDate(body, reference);
+    if (!date) continue;
+    items.push({
+      id: `summary:${id}`,
+      date,
+      boardId: id,
+      boardTitle: board?.title || "Board",
+      cardTitle: "",
+      author: "Resumo",
+      body,
+      kind: "summary",
+    });
+  }
 
   for (const card of Object.values(input.cards)) {
     const list = input.lists[card.listId];
@@ -133,6 +175,7 @@ export function collectEvolutionDayComments(input: {
         : "";
     if (!date) continue;
     const note = String(activity.note || "").trim();
+    if (!note) continue;
     const cardTitle = activity.cardId
       ? input.cards[activity.cardId]?.title || ""
       : "";
@@ -148,9 +191,11 @@ export function collectEvolutionDayComments(input: {
     });
   }
 
+  const kindOrder = { summary: 0, note: 1, comment: 2, update: 3 };
   return items.sort(
     (a, b) =>
-      a.date.localeCompare(b.date) ||
+      b.date.localeCompare(a.date) ||
+      kindOrder[a.kind] - kindOrder[b.kind] ||
       a.boardTitle.localeCompare(b.boardTitle, "pt-BR") ||
       a.cardTitle.localeCompare(b.cardTitle, "pt-BR") ||
       a.id.localeCompare(b.id),

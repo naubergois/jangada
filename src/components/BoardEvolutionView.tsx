@@ -216,7 +216,6 @@ export function BoardEvolutionView({
   const updatesRef = useRef<HTMLDivElement | null>(null);
   const visibleComments = comments.filter((item) => {
     if (activeId && item.boardId !== activeId) return false;
-    if (activeDate && item.date !== activeDate) return false;
     return true;
   });
   const selectedPoint =
@@ -299,6 +298,96 @@ export function BoardEvolutionView({
               );
             })}
           </ul>
+        </>
+      )}
+
+      <div ref={updatesRef} className="mt-4 border-t border-white/10 pt-3">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="h-4 w-4 text-[var(--accent)]" />
+          <h3 className="text-sm font-medium text-white">
+            Atualizações por dia
+            {activeId ? ` · ${boards[activeId]?.title || ""}` : ""}
+          </h3>
+          {activeId || activeDate ? (
+            <button
+              type="button"
+              onClick={() => {
+                setActiveDate(null);
+                setActiveId(null);
+              }}
+              className="text-xs text-white/60 underline-offset-2 hover:text-white hover:underline"
+            >
+              Ver todos os boards
+            </button>
+          ) : null}
+        </div>
+        {selectedPoint ? (
+          <p className="mt-2 text-sm text-white">
+            Andamento neste dia:{" "}
+            <span className="font-semibold">{formatEvolutionPct(selectedPoint.pct)}%</span>
+          </p>
+        ) : null}
+        {commentDays.length === 0 ? (
+          <p className="mt-2 text-sm text-white/60">
+            {selectedPoint
+              ? "Sem atualização escrita neste board."
+              : "Nenhuma atualização nestes boards."}
+          </p>
+        ) : (
+          <ol className="mt-3 space-y-4">
+            {commentDays.map((group) => {
+              const on = activeDate === group.date;
+              return (
+                <li key={group.date}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveDate(on ? null : group.date)}
+                    className={`text-xs font-semibold uppercase tracking-wide ${
+                      on ? "text-white" : "text-white/55 hover:text-white"
+                    }`}
+                    aria-pressed={on}
+                  >
+                    {formatEvolutionDate(group.date)}
+                    <span className="ml-2 font-normal normal-case tracking-normal text-white/45">
+                      {group.items.length === 1
+                        ? "1 atualização"
+                        : `${group.items.length} atualizações`}
+                    </span>
+                  </button>
+                  <ul className="mt-1.5 space-y-1.5">
+                    {group.items.map((item) => (
+                      <li
+                        key={item.id}
+                        className="rounded-xl border border-white/10 bg-black/20 px-3 py-2"
+                      >
+                        <p className="text-[11px] text-white/55">
+                          <span className="text-white/80">{item.author}</span>
+                          {" · "}
+                          {item.boardTitle}
+                          {item.cardTitle ? ` · ${item.cardTitle}` : ""}
+                          {item.kind === "summary"
+                            ? " · resumo"
+                            : item.kind === "note"
+                              ? " · observação"
+                              : item.kind === "update"
+                                ? " · atualização"
+                                : " · comentário"}
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-white/90">
+                          {item.body}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+
+      {drawn.length > 0 ? (
+        <>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[28rem] text-left text-xs text-white/80">
               <caption className="sr-only">Pontos de andamento por board</caption>
@@ -348,94 +437,6 @@ export function BoardEvolutionView({
           Sem percentual datado: {missing.map((line) => line.title).join(", ")}.
         </p>
       ) : null}
-
-      <div ref={updatesRef} className="mt-4 border-t border-white/10 pt-3">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="h-4 w-4 text-[var(--accent)]" />
-          <h3 className="text-sm font-medium text-white">
-            {activeDate
-              ? `Atualizações de ${formatEvolutionDate(activeDate)}`
-              : "Atualizações por dia"}
-            {activeId && activeDate
-              ? ` · ${boards[activeId]?.title || ""}`
-              : ""}
-          </h3>
-          {activeDate ? (
-            <button
-              type="button"
-              onClick={() => {
-                setActiveDate(null);
-                setActiveId(null);
-              }}
-              className="text-xs text-white/60 underline-offset-2 hover:text-white hover:underline"
-            >
-              Ver todos os dias
-            </button>
-          ) : null}
-        </div>
-        {selectedPoint ? (
-          <p className="mt-2 text-sm text-white">
-            Andamento neste dia:{" "}
-            <span className="font-semibold">{formatEvolutionPct(selectedPoint.pct)}%</span>
-          </p>
-        ) : null}
-        {commentDays.length === 0 ? (
-          <p className="mt-2 text-sm text-white/60">
-            {selectedPoint
-              ? "Sem outra atualização neste dia."
-              : "Nenhuma atualização nestes boards."}
-          </p>
-        ) : (
-          <ol className="mt-3 space-y-4">
-            {commentDays.map((group) => {
-              const on = activeDate === group.date;
-              return (
-                <li key={group.date}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveDate(on ? null : group.date)}
-                    className={`text-xs font-semibold uppercase tracking-wide ${
-                      on ? "text-white" : "text-white/55 hover:text-white"
-                    }`}
-                    aria-pressed={on}
-                  >
-                    {formatEvolutionDate(group.date)}
-                    <span className="ml-2 font-normal normal-case tracking-normal text-white/45">
-                      {group.items.length === 1
-                        ? "1 atualização"
-                        : `${group.items.length} atualizações`}
-                    </span>
-                  </button>
-                  <ul className="mt-1.5 space-y-1.5">
-                    {group.items.map((item) => (
-                      <li
-                        key={item.id}
-                        className="rounded-xl border border-white/10 bg-black/20 px-3 py-2"
-                      >
-                        <p className="text-[11px] text-white/55">
-                          <span className="text-white/80">{item.author}</span>
-                          {" · "}
-                          {item.boardTitle}
-                          {" · "}
-                          {item.cardTitle}
-                          {item.kind === "note"
-                            ? " · observação"
-                            : item.kind === "update"
-                              ? " · atualização"
-                              : " · comentário"}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-white/90">
-                          {item.body}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </div>
     </section>
   );
 }
